@@ -1,11 +1,16 @@
 {
-  "svg_path": "C:/Users/Kostubh/Documents/GitLab_Repos/wt_html/TC_Joint_Wrap_May_25/exp.svg",
-  "datamatrix_folder": "C:/Users/Kostubh/Documents/GitLab_Repos/wt_html/TC_Shoulder_Wrap_May_25/Data_MatrixImages",
+  "svg_path": "C:/Users/user/Downloads/temp/UDI_Label/D-272-HRC-MDF-12-UDI LABEL-V1.svg",
+  "datamatrix_folder": "C:/Users/user/Downloads/temp/UDI_Label/Data_MatrixImages",
   "tspan_ids": [
     "tspan20",
     "tspan27"
   ],
   "image_id": "image1",
-  "start_number": "2643",
-  "end_number": "2649"
+  "start_number": "225",
+  "end_number": "1050",
+  "serial_prefix": "2601D272HRC",
+  "use_secondary_barcode": false,
+  "secondary_barcode_folder": "",
+  "secondary_image_id": "image2",
+  "transparent_bg": false
 }
