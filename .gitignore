@@ -1,3 +1,5 @@
 *.png
 *.ai
 *.svg
+*.pdf
+inkscape_label_gui_config.json

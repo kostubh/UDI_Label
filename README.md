@@ -14,22 +14,36 @@ Generates DataMatrix barcode images with customizable serial numbers.
 - Progress tracking
 - High-resolution output (600 DPI)
 
-### 2. Inkscape Label Generator (`inkscape_script_final.py`)
+### 2. Inkscape Label Generator (`inkscape_script_optimized.py`)
 Creates labels by combining SVG templates with DataMatrix images.
 
 **Features:**
 - SVG template support
 - Customizable text elements
 - DataMatrix image integration
+- Secondary barcode image support
 - Configurable serial number ranges
 - Preview functionality
 - Config file for saving settings
+- Parallel processing optimization
+- Support for both PNG and SVG output formats
 
-### 3. PNG to PDF Converter (`png_to_pdf.py`)
+### 3. File Sequence Verifier (`verify_labels.py`)
+Validates that generated label files have correct sequential numbering.
+
+**Features:**
+- Batch file sequence validation
+- Duplicate detection
+- Missing file detection
+- Sequential number verification
+- Detailed error reporting
+
+### 4. PNG to PDF Converter (`png_to_pdf.py`)
 Converts PNG images to PDF format with customizable page settings.
 
 **Features:**
 - Multiple image selection
+- Image size detection and preset
 - Customizable page size
 - Portrait/Landscape orientation
 - Progress tracking
@@ -64,14 +78,23 @@ pip install pillow pylibdmtx PyPDF2 reportlab
 2. Enter the base data format
 3. Set the start and end numbers
 4. Choose output folder
-5. Click "Generate DataMatrix Images"
+5. Optional: Enable "Create 'Data_MatrixImages' subfolder"
+6. Click "Generate DataMatrix Images"
 
 ### Label Generation
-1. Run `inkscape_script_final.py`
+1. Run `inkscape_script_optimized.py`
 2. Select SVG template file
 3. Choose DataMatrix images folder
 4. Configure element IDs and serial number range
-5. Click "Generate Labels"
+5. Optional: Enable secondary barcode images
+6. Select output format (PNG, SVG, or both)
+7. Click "Generate Labels"
+
+### File Sequence Verification
+1. Run `verify_labels.py`
+2. Click "Select Folder"
+3. Choose folder containing generated label files
+4. View verification results (checks for duplicates and missing files)
 
 ### PNG to PDF Conversion
 1. Run `png_to_pdf.py`
