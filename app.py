@@ -16,6 +16,7 @@ from pypdf import PdfWriter
 import subprocess
 import re
 import requests
+import json
 
 # Page config
 st.set_page_config(
@@ -41,52 +42,66 @@ if 'config' not in st.session_state:
         'secondary_image_id': 'image2'
     }
 
-# Upload function for file sharing
-def upload_file_to_fileio(file_data, filename, file_size_mb):
-    """Upload file to file.io and return shareable link data"""
+# Google Drive folder ID (from the URL)
+GDRIVE_FOLDER_ID = "1ekdh6SSXvMuxbT9-mr3Y8HvlCluvUs5p"
+
+# Upload function for Google Drive
+def upload_to_gdrive(file_data, filename, file_size_mb):
+    """Upload file to Google Drive public folder"""
     try:
-        # file.io upload API
-        url = "https://file.io"
+        # Google Drive API v3 upload endpoint
+        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
 
-        # Create multipart form data
-        files = {'file': (filename, file_data, 'application/pdf')}
+        # Create metadata
+        metadata = {
+            'name': filename,
+            'parents': [GDRIVE_FOLDER_ID]
+        }
 
-        # Set expiry to 14 days (14d) - file.io accepts: 1y, 1m, 1w, 1d, etc.
-        data = {'expires': '14d'}
+        # Create multipart request
+        boundary = '-------314159265358979323846'
+
+        # Build multipart body
+        body = f'--{boundary}\r\n'
+        body += 'Content-Type: application/json; charset=UTF-8\r\n\r\n'
+        body += f'{json.dumps(metadata)}\r\n'
+        body += f'--{boundary}\r\n'
+        body += 'Content-Type: application/pdf\r\n\r\n'
+
+        # Convert to bytes
+        body_bytes = body.encode('utf-8')
+        body_bytes += file_data
+        body_bytes += f'\r\n--{boundary}--'.encode('utf-8')
+
+        # Set headers
+        headers = {
+            'Content-Type': f'multipart/related; boundary={boundary}'
+        }
 
         # Upload
-        response = requests.post(url, files=files, data=data, timeout=300)
+        response = requests.post(url, headers=headers, data=body_bytes, timeout=300)
 
-        # Debug: Check what we actually received
-        if response.status_code == 200:
-            try:
-                result = response.json()
+        if response.status_code in [200, 201]:
+            result = response.json()
+            file_id = result.get('id')
 
-                if result.get('success'):
-                    download_link = result['link']
+            # Generate shareable link
+            file_url = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
+            download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            folder_url = f"https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}"
 
-                    # Return data
-                    return {
-                        'success': True,
-                        'download_link': download_link,
-                        'filename': filename,
-                        'file_size_mb': file_size_mb
-                    }
-                else:
-                    return {
-                        'success': False,
-                        'error': f"Upload failed: {result.get('message', 'Unknown error')}"
-                    }
-            except ValueError as e:
-                # JSON parsing failed - service might be returning HTML
-                return {
-                    'success': False,
-                    'error': f"Service returned invalid response. Response text: {response.text[:200]}"
-                }
+            return {
+                'success': True,
+                'file_url': file_url,
+                'download_url': download_url,
+                'folder_url': folder_url,
+                'filename': filename,
+                'file_size_mb': file_size_mb
+            }
         else:
             return {
                 'success': False,
-                'error': f"Upload failed: HTTP {response.status_code}. Response: {response.text[:200]}"
+                'error': f"Upload failed: HTTP {response.status_code}. Response: {response.text[:300]}"
             }
 
     except requests.exceptions.Timeout:
@@ -94,15 +109,10 @@ def upload_file_to_fileio(file_data, filename, file_size_mb):
             'success': False,
             'error': "Upload timed out (>5 min). File might be too large."
         }
-    except requests.exceptions.ConnectionError as e:
-        return {
-            'success': False,
-            'error': f"Connection error: {str(e)[:150]}. Service might be down or blocked."
-        }
     except Exception as e:
         return {
             'success': False,
-            'error': f"Unexpected error: {str(e)[:200]}"
+            'error': f"Upload error: {str(e)[:300]}"
         }
 
 # Title
@@ -613,9 +623,9 @@ with tab4:
 
                 with col_b:
                     # Upload button
-                    if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
-                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to file.io..."):
-                            result = upload_file_to_fileio(
+                    if st.button("☁️ Upload to Google Drive", type="secondary", use_container_width=True):
+                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to Google Drive..."):
+                            result = upload_to_gdrive(
                                 st.session_state.final_pdf,
                                 st.session_state.pdf_filename,
                                 st.session_state.pdf_size_mb
@@ -629,20 +639,24 @@ with tab4:
                 if result['success']:
                     st.success("✅ Upload successful!")
                     st.markdown(f"""
-                    ### 🔗 Download Link
+                    ### 🔗 Google Drive Links
 
-                    **[Click here to download {result['filename']}]({result['download_link']})**
+                    **[📁 View in Google Drive]({result['file_url']})**
 
-                    Or copy this link to share:
+                    **[⬇️ Direct Download Link]({result['download_url']})**
+
+                    **[📂 Open Drive Folder]({result['folder_url']})**
+
+                    Copy link to share:
                     ```
-                    {result['download_link']}
+                    {result['file_url']}
                     ```
 
-                    ⏱️ **Valid for:** 14 days
                     📊 **File size:** {result['file_size_mb']:.2f} MB
-                    🌐 **Service:** file.io (free, no registration)
+                    🌐 **Storage:** Google Drive (your public folder)
+                    ⏱️ **Available:** Permanently (until you delete it)
 
-                    💡 **Tip:** Copy the link above and share it with anyone who needs the file!
+                    💡 **Tip:** The file is now in your Google Drive folder and accessible to anyone with the link!
                     """)
 
                     # Add a clear button to hide the results
