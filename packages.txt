@@ -1,1 +1,2 @@
 libdmtx0b
+inkscape

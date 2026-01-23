@@ -191,12 +191,12 @@ with tab2:
             with col2:
                 use_inkscape = st.checkbox(
                     "Use Inkscape for PNG Export",
-                    value=False,
-                    help="Enable if Inkscape is installed. Otherwise, SVG files will be generated."
+                    value=True,
+                    help="Generates PNG files using Inkscape (recommended). Uncheck to generate SVG files only."
                 )
 
                 if use_inkscape:
-                    st.info("⚠️ Inkscape must be installed and accessible via command line")
+                    st.info("✅ Inkscape is installed and ready to use")
 
             st.markdown("---")
 
