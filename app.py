@@ -57,39 +57,52 @@ def upload_file_to_fileio(file_data, filename, file_size_mb):
         # Upload
         response = requests.post(url, files=files, data=data, timeout=300)
 
+        # Debug: Check what we actually received
         if response.status_code == 200:
-            result = response.json()
+            try:
+                result = response.json()
 
-            if result.get('success'):
-                download_link = result['link']
+                if result.get('success'):
+                    download_link = result['link']
 
-                # Return data
-                return {
-                    'success': True,
-                    'download_link': download_link,
-                    'filename': filename,
-                    'file_size_mb': file_size_mb
-                }
-            else:
+                    # Return data
+                    return {
+                        'success': True,
+                        'download_link': download_link,
+                        'filename': filename,
+                        'file_size_mb': file_size_mb
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': f"Upload failed: {result.get('message', 'Unknown error')}"
+                    }
+            except ValueError as e:
+                # JSON parsing failed - service might be returning HTML
                 return {
                     'success': False,
-                    'error': f"Upload failed: {result.get('message', 'Unknown error')}"
+                    'error': f"Service returned invalid response. Response text: {response.text[:200]}"
                 }
         else:
             return {
                 'success': False,
-                'error': f"Upload failed: {response.status_code} - {response.text}"
+                'error': f"Upload failed: HTTP {response.status_code}. Response: {response.text[:200]}"
             }
 
     except requests.exceptions.Timeout:
         return {
             'success': False,
-            'error': "Upload timed out. File may be too large. Try downloading instead."
+            'error': "Upload timed out (>5 min). File might be too large."
+        }
+    except requests.exceptions.ConnectionError as e:
+        return {
+            'success': False,
+            'error': f"Connection error: {str(e)[:150]}. Service might be down or blocked."
         }
     except Exception as e:
         return {
             'success': False,
-            'error': f"Upload error: {str(e)}"
+            'error': f"Unexpected error: {str(e)[:200]}"
         }
 
 # Title
