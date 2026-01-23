@@ -42,9 +42,53 @@ if 'config' not in st.session_state:
         'secondary_image_id': 'image2'
     }
 
-# Google Drive folder ID (from the URL)
-GDRIVE_FOLDER_ID = "1ekdh6SSXvMuxbT9-mr3Y8HvlCluvUs5p"
-GDRIVE_FOLDER_URL = f"https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}"
+# Upload function for filebin.net
+def upload_to_filebin(file_data, filename, file_size_mb):
+    """Upload file to filebin.net and return shareable link"""
+    try:
+        # Generate a unique bin ID based on timestamp and filename
+        import time
+        import hashlib
+
+        # Create a unique bin name
+        timestamp = int(time.time())
+        bin_id = hashlib.md5(f"{filename}{timestamp}".encode()).hexdigest()[:12]
+
+        # filebin.net upload API
+        url = f"https://filebin.net/{bin_id}/{filename}"
+
+        # Upload file (simple PUT request)
+        headers = {'Content-Type': 'application/pdf'}
+        response = requests.post(url, data=file_data, headers=headers, timeout=300)
+
+        if response.status_code in [200, 201]:
+            # Generate shareable links
+            bin_url = f"https://filebin.net/{bin_id}"
+            file_url = f"https://filebin.net/{bin_id}/{filename}"
+
+            return {
+                'success': True,
+                'bin_url': bin_url,
+                'file_url': file_url,
+                'filename': filename,
+                'file_size_mb': file_size_mb
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Upload failed: HTTP {response.status_code}. Response: {response.text[:300]}"
+            }
+
+    except requests.exceptions.Timeout:
+        return {
+            'success': False,
+            'error': "Upload timed out (>5 min). File might be too large."
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f"Upload error: {str(e)[:300]}"
+        }
 
 # Title
 st.title("🏷️ UDI Label Generator")
@@ -553,33 +597,47 @@ with tab4:
                     )
 
                 with col_b:
-                    # Link to open Google Drive folder
-                    st.markdown(f"""
-                    <a href="{GDRIVE_FOLDER_URL}" target="_blank">
-                        <button style="
-                            background-color: #4285f4;
-                            color: white;
-                            padding: 0.5rem 1rem;
-                            border: none;
-                            border-radius: 0.25rem;
-                            font-size: 1rem;
-                            cursor: pointer;
-                            width: 100%;
-                            font-family: inherit;
-                        ">
-                            ☁️ Open Google Drive Folder
-                        </button>
-                    </a>
-                    """, unsafe_allow_html=True)
+                    # Upload button
+                    if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
+                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to filebin.net..."):
+                            result = upload_to_filebin(
+                                st.session_state.final_pdf,
+                                st.session_state.pdf_filename,
+                                st.session_state.pdf_size_mb
+                            )
+                            st.session_state.upload_result = result
 
-                st.markdown("---")
-                st.info("""
-                📤 **How to upload to Google Drive:**
-                1. Click "📥 Download PDF" to save the file
-                2. Click "☁️ Open Google Drive Folder" (opens in new tab)
-                3. Drag and drop the downloaded PDF into the Drive folder
-                4. Done! File is now in your Google Drive and shareable
-                """)
+            # Display upload results if they exist (outside the button to persist across reruns)
+            if 'upload_result' in st.session_state and st.session_state.upload_result:
+                result = st.session_state.upload_result
+
+                if result['success']:
+                    st.success("✅ Upload successful!")
+                    st.markdown(f"""
+                    ### 🔗 Shareable Links
+
+                    **[📁 View All Files in Bin]({result['bin_url']})**
+
+                    **[📄 Direct File Link]({result['file_url']})**
+
+                    Copy link to share:
+                    ```
+                    {result['file_url']}
+                    ```
+
+                    📊 **File size:** {result['file_size_mb']:.2f} MB
+                    🌐 **Service:** filebin.net (free, no registration)
+                    ⏱️ **Available:** Until deleted (no automatic expiry mentioned)
+
+                    💡 **Tip:** Share the link with anyone who needs the file. Click the bin link to manage your uploaded files.
+                    """)
+
+                    # Add a clear button to hide the results
+                    if st.button("Clear Upload Results"):
+                        del st.session_state.upload_result
+                        st.rerun()
+                else:
+                    st.error(f"❌ {result['error']}")
 
 # Footer
 st.markdown("---")
