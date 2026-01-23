@@ -15,6 +15,7 @@ from reportlab.lib.utils import ImageReader
 from pypdf import PdfWriter
 import subprocess
 import re
+import requests
 
 # Page config
 st.set_page_config(
@@ -39,6 +40,60 @@ if 'config' not in st.session_state:
         'use_secondary': False,
         'secondary_image_id': 'image2'
     }
+
+# Upload function for file sharing
+def upload_file_to_pixeldrain(file_data, filename, file_size_mb):
+    """Upload file to Pixeldrain and return shareable link"""
+    try:
+        with st.spinner(f"📤 Uploading {filename} ({file_size_mb:.2f} MB) to Pixeldrain..."):
+            # Pixeldrain anonymous upload API
+            url = "https://pixeldrain.com/api/file"
+
+            # Create multipart form data
+            files = {'file': (filename, file_data, 'application/pdf')}
+
+            # Upload with progress (note: progress tracking is limited in Streamlit)
+            response = requests.post(url, files=files, timeout=300)
+
+            if response.status_code == 201:
+                result = response.json()
+                file_id = result['id']
+
+                # Generate shareable links
+                download_link = f"https://pixeldrain.com/u/{file_id}"
+                direct_link = f"https://pixeldrain.com/api/file/{file_id}"
+
+                st.success("✅ Upload successful!")
+                st.markdown(f"""
+                ### 🔗 Shareable Links
+
+                **Download Page:** [Click here to download]({download_link})
+                ```
+                {download_link}
+                ```
+
+                **Direct Download Link:**
+                ```
+                {direct_link}
+                ```
+
+                ⏱️ **Valid for:** 60+ days
+                📊 **File size:** {file_size_mb:.2f} MB
+
+                💡 **Tip:** Copy the link above and share it with anyone who needs the file!
+                """)
+
+                return True
+            else:
+                st.error(f"❌ Upload failed: {response.status_code} - {response.text}")
+                return False
+
+    except requests.exceptions.Timeout:
+        st.error("❌ Upload timed out. File may be too large. Try downloading instead.")
+        return False
+    except Exception as e:
+        st.error(f"❌ Upload error: {str(e)}")
+        return False
 
 # Title
 st.title("🏷️ UDI Label Generator")
@@ -503,20 +558,49 @@ with tab4:
                     progress_bar.empty()
                     status_text.empty()
 
-                    st.success(f"✅ PDF created with {total} pages!")
+                    # Generate filename based on serial range
+                    first_serial = serial_numbers[0]
+                    last_serial = serial_numbers[-1]
 
-                    # Download button
-                    st.download_button(
-                        label="📥 Download PDF",
-                        data=pdf_buffer,
-                        file_name="udi_labels.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
+                    # Extract numeric part from serials
+                    import re
+                    first_num = re.search(r'(\d{4})$', first_serial)
+                    last_num = re.search(r'(\d{4})$', last_serial)
+
+                    if first_num and last_num:
+                        # Get prefix (everything before the last 4 digits)
+                        prefix = first_serial[:-4]
+                        filename = f"{prefix}_{first_num.group(1)}-{last_num.group(1)}.pdf"
+                    else:
+                        filename = "udi_labels.pdf"
+
+                    st.success(f"✅ PDF created with {total} pages!")
+                    st.info(f"📄 Filename: `{filename}`")
 
                     # Show file size
                     pdf_size_mb = len(pdf_buffer.getvalue()) / (1024 * 1024)
                     st.info(f"📊 PDF Size: {pdf_size_mb:.2f} MB")
+
+                    # Store in session state for upload
+                    st.session_state.final_pdf = pdf_buffer.getvalue()
+                    st.session_state.pdf_filename = filename
+
+                    col_a, col_b = st.columns(2)
+
+                    with col_a:
+                        # Download button
+                        st.download_button(
+                            label="📥 Download PDF",
+                            data=pdf_buffer,
+                            file_name=filename,
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+
+                    with col_b:
+                        # Upload button
+                        if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
+                            upload_file_to_pixeldrain(pdf_buffer.getvalue(), filename, pdf_size_mb)
 
 # Footer
 st.markdown("---")
