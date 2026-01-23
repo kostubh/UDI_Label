@@ -43,57 +43,49 @@ if 'config' not in st.session_state:
 
 # Upload function for file sharing
 def upload_file_to_pixeldrain(file_data, filename, file_size_mb):
-    """Upload file to Pixeldrain and return shareable link"""
+    """Upload file to Pixeldrain and return shareable link data"""
     try:
-        with st.spinner(f"📤 Uploading {filename} ({file_size_mb:.2f} MB) to Pixeldrain..."):
-            # Pixeldrain anonymous upload API
-            url = "https://pixeldrain.com/api/file"
+        # Pixeldrain anonymous upload API
+        url = "https://pixeldrain.com/api/file"
 
-            # Create multipart form data
-            files = {'file': (filename, file_data, 'application/pdf')}
+        # Create multipart form data
+        files = {'file': (filename, file_data, 'application/pdf')}
 
-            # Upload with progress (note: progress tracking is limited in Streamlit)
-            response = requests.post(url, files=files, timeout=300)
+        # Upload with progress
+        response = requests.post(url, files=files, timeout=300)
 
-            if response.status_code == 201:
-                result = response.json()
-                file_id = result['id']
+        if response.status_code == 201:
+            result = response.json()
+            file_id = result['id']
 
-                # Generate shareable links
-                download_link = f"https://pixeldrain.com/u/{file_id}"
-                direct_link = f"https://pixeldrain.com/api/file/{file_id}"
+            # Generate shareable links
+            download_link = f"https://pixeldrain.com/u/{file_id}"
+            direct_link = f"https://pixeldrain.com/api/file/{file_id}"
 
-                st.success("✅ Upload successful!")
-                st.markdown(f"""
-                ### 🔗 Shareable Links
-
-                **Download Page:** [Click here to download]({download_link})
-                ```
-                {download_link}
-                ```
-
-                **Direct Download Link:**
-                ```
-                {direct_link}
-                ```
-
-                ⏱️ **Valid for:** 60+ days
-                📊 **File size:** {file_size_mb:.2f} MB
-
-                💡 **Tip:** Copy the link above and share it with anyone who needs the file!
-                """)
-
-                return True
-            else:
-                st.error(f"❌ Upload failed: {response.status_code} - {response.text}")
-                return False
+            # Return data instead of displaying
+            return {
+                'success': True,
+                'download_link': download_link,
+                'direct_link': direct_link,
+                'filename': filename,
+                'file_size_mb': file_size_mb
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Upload failed: {response.status_code} - {response.text}"
+            }
 
     except requests.exceptions.Timeout:
-        st.error("❌ Upload timed out. File may be too large. Try downloading instead.")
-        return False
+        return {
+            'success': False,
+            'error': "Upload timed out. File may be too large. Try downloading instead."
+        }
     except Exception as e:
-        st.error(f"❌ Upload error: {str(e)}")
-        return False
+        return {
+            'success': False,
+            'error': f"Upload error: {str(e)}"
+        }
 
 # Title
 st.title("🏷️ UDI Label Generator")
@@ -584,6 +576,7 @@ with tab4:
                     # Store in session state for upload
                     st.session_state.final_pdf = pdf_buffer.getvalue()
                     st.session_state.pdf_filename = filename
+                    st.session_state.pdf_size_mb = pdf_size_mb
 
                     col_a, col_b = st.columns(2)
 
@@ -600,7 +593,41 @@ with tab4:
                     with col_b:
                         # Upload button
                         if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
-                            upload_file_to_pixeldrain(pdf_buffer.getvalue(), filename, pdf_size_mb)
+                            with st.spinner(f"📤 Uploading {filename} ({pdf_size_mb:.2f} MB) to Pixeldrain..."):
+                                result = upload_file_to_pixeldrain(pdf_buffer.getvalue(), filename, pdf_size_mb)
+                                st.session_state.upload_result = result
+
+            # Display upload results if they exist (outside the button to persist across reruns)
+            if 'upload_result' in st.session_state and st.session_state.upload_result:
+                result = st.session_state.upload_result
+
+                if result['success']:
+                    st.success("✅ Upload successful!")
+                    st.markdown(f"""
+                    ### 🔗 Shareable Links
+
+                    **Download Page:** [Click here to download]({result['download_link']})
+                    ```
+                    {result['download_link']}
+                    ```
+
+                    **Direct Download Link:**
+                    ```
+                    {result['direct_link']}
+                    ```
+
+                    ⏱️ **Valid for:** 60+ days
+                    📊 **File size:** {result['file_size_mb']:.2f} MB
+
+                    💡 **Tip:** Copy the link above and share it with anyone who needs the file!
+                    """)
+
+                    # Add a clear button to hide the results
+                    if st.button("Clear Upload Results"):
+                        del st.session_state.upload_result
+                        st.rerun()
+                else:
+                    st.error(f"❌ {result['error']}")
 
 # Footer
 st.markdown("---")
