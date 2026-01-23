@@ -11,6 +11,7 @@ from PIL import Image
 from pylibdmtx.pylibdmtx import encode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.utils import ImageReader
 from pypdf import PdfWriter
 import subprocess
 import re
@@ -436,10 +437,8 @@ with tab4:
                         img_data = st.session_state.label_pngs[serial]
                         img = Image.open(io.BytesIO(img_data))
 
-                        # Save image temporarily
-                        temp_img = io.BytesIO()
-                        img.save(temp_img, format='PNG')
-                        temp_img.seek(0)
+                        # Create ImageReader for reportlab
+                        img_reader = ImageReader(io.BytesIO(img_data))
 
                         if fit_to_page:
                             # Calculate scaling
@@ -462,7 +461,7 @@ with tab4:
                             y_pos = (pagesize[1] - height) / 2
 
                         # Draw image
-                        c.drawImage(temp_img, x_pos, y_pos, width=width, height=height)
+                        c.drawImage(img_reader, x_pos, y_pos, width=width, height=height)
                         c.save()
 
                         # Add to writer
