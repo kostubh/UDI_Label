@@ -139,6 +139,10 @@ with tab1:
                 field_21_value = base_data.split('(21)')[-1].strip()
 
                 total = end_num - start_num + 1
+
+                # Reduce UI update frequency to avoid connection issues
+                update_interval = max(1, total // 20)  # Update max 20 times total
+
                 for i in range(start_num, end_num + 1):
                     # Create serial data
                     data = base_data + f'{i:04d}'
@@ -162,10 +166,12 @@ with tab1:
                     serial_number = f"{field_21_value}{i:04d}"
                     st.session_state.datamatrix_images[serial_number] = img_bytes.read()
 
-                    # Update progress
-                    progress = (i - start_num + 1) / total
-                    progress_bar.progress(progress)
-                    status_text.text(f"Generating: {i - start_num + 1}/{total}")
+                    # Update progress less frequently
+                    current = i - start_num + 1
+                    if current % update_interval == 0 or current == total:
+                        progress = current / total
+                        progress_bar.progress(progress)
+                        status_text.text(f"Generating: {current}/{total}")
 
                 progress_bar.empty()
                 status_text.empty()
@@ -268,6 +274,9 @@ with tab2:
                     serial_numbers = sorted(st.session_state.datamatrix_images.keys())
                     total = len(serial_numbers)
 
+                    # Reduce UI update frequency to avoid connection issues
+                    update_interval = max(1, total // 20)  # Update max 20 times total
+
                     for idx, serial_number in enumerate(serial_numbers):
                         # Parse SVG
                         root = ET.fromstring(st.session_state.svg_template)
@@ -332,10 +341,12 @@ with tab2:
                             # Store SVG as-is (can be converted later or downloaded)
                             st.session_state.label_pngs[serial_number] = svg_bytes
 
-                        # Update progress
-                        progress = (idx + 1) / total
-                        progress_bar.progress(progress)
-                        status_text.text(f"Generating: {idx + 1}/{total}")
+                        # Update progress less frequently
+                        current = idx + 1
+                        if current % update_interval == 0 or current == total:
+                            progress = current / total
+                            progress_bar.progress(progress)
+                            status_text.text(f"Generating: {current}/{total}")
 
                     progress_bar.empty()
                     status_text.empty()
@@ -498,6 +509,9 @@ with tab4:
 
                     temp_pdfs = []
 
+                    # Reduce UI update frequency to avoid connection issues
+                    update_interval = max(1, total // 20)  # Update max 20 times total
+
                     for idx, serial in enumerate(serial_numbers):
                         # Create temp PDF for this image
                         temp_pdf = io.BytesIO()
@@ -539,10 +553,12 @@ with tab4:
                         writer.append(temp_pdf)
                         temp_pdfs.append(temp_pdf)
 
-                        # Update progress
-                        progress = (idx + 1) / total
-                        progress_bar.progress(progress)
-                        status_text.text(f"Processing: {idx + 1}/{total}")
+                        # Update progress less frequently
+                        current = idx + 1
+                        if current % update_interval == 0 or current == total:
+                            progress = current / total
+                            progress_bar.progress(progress)
+                            status_text.text(f"Processing: {current}/{total}")
 
                     # Write final PDF
                     writer.write(pdf_buffer)
