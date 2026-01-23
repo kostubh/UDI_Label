@@ -11,7 +11,7 @@ from PIL import Image
 from pylibdmtx.pylibdmtx import encode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
-from PyPDF2 import PdfMerger
+from pypdf import PdfMerger
 import subprocess
 import re
 
