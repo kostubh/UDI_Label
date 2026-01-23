@@ -42,27 +42,39 @@ if 'config' not in st.session_state:
     }
 
 # Upload function for file sharing
-def upload_file_to_transfer_sh(file_data, filename, file_size_mb):
-    """Upload file to transfer.sh and return shareable link data"""
+def upload_file_to_fileio(file_data, filename, file_size_mb):
+    """Upload file to file.io and return shareable link data"""
     try:
-        # transfer.sh simple upload API
-        url = f"https://transfer.sh/{filename}"
+        # file.io upload API
+        url = "https://file.io"
 
-        # Upload file (transfer.sh uses PUT request with raw data)
-        headers = {'Content-Type': 'application/pdf'}
-        response = requests.put(url, data=file_data, headers=headers, timeout=300)
+        # Create multipart form data
+        files = {'file': (filename, file_data, 'application/pdf')}
+
+        # Set expiry to 14 days (14d) - file.io accepts: 1y, 1m, 1w, 1d, etc.
+        data = {'expires': '14d'}
+
+        # Upload
+        response = requests.post(url, files=files, data=data, timeout=300)
 
         if response.status_code == 200:
-            # transfer.sh returns the download URL as plain text
-            download_link = response.text.strip()
+            result = response.json()
 
-            # Return data
-            return {
-                'success': True,
-                'download_link': download_link,
-                'filename': filename,
-                'file_size_mb': file_size_mb
-            }
+            if result.get('success'):
+                download_link = result['link']
+
+                # Return data
+                return {
+                    'success': True,
+                    'download_link': download_link,
+                    'filename': filename,
+                    'file_size_mb': file_size_mb
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f"Upload failed: {result.get('message', 'Unknown error')}"
+                }
         else:
             return {
                 'success': False,
@@ -589,8 +601,8 @@ with tab4:
                 with col_b:
                     # Upload button
                     if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
-                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to transfer.sh..."):
-                            result = upload_file_to_transfer_sh(
+                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to file.io..."):
+                            result = upload_file_to_fileio(
                                 st.session_state.final_pdf,
                                 st.session_state.pdf_filename,
                                 st.session_state.pdf_size_mb
@@ -615,7 +627,7 @@ with tab4:
 
                     ⏱️ **Valid for:** 14 days
                     📊 **File size:** {result['file_size_mb']:.2f} MB
-                    🌐 **Service:** transfer.sh (free, no registration)
+                    🌐 **Service:** file.io (free, no registration)
 
                     💡 **Tip:** Copy the link above and share it with anyone who needs the file!
                     """)
