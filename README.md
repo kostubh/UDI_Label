@@ -1,8 +1,40 @@
-# Label Generation Suite
+# UDI Label Generation Suite
 
 A collection of Python tools for generating labels with DataMatrix codes and converting images to PDFs.
 
-## Components
+## 🌐 Web App (NEW!)
+
+We now have a **web-based version** that combines all tools into one easy-to-use interface!
+
+- ✅ No manual steps - automated workflow
+- ✅ Web interface accessible from anywhere
+- ✅ Direct PDF download (no Google Drive needed)
+- ✅ Handles large files (500MB-few GB)
+- ✅ **FREE hosting** on Streamlit Cloud, Hugging Face, or Google Cloud
+
+**[See DEPLOYMENT.md for setup instructions →](DEPLOYMENT.md)**
+
+### Quick Start (Web App)
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Then visit `http://localhost:8501` in your browser.
+
+## Desktop Tools vs Web App
+
+| Feature | Desktop Tools | Web App |
+|---------|--------------|---------|
+| Interface | Tkinter GUI | Web Browser |
+| Installation | Local Python + Inkscape | Just visit URL |
+| Workflow | Manual step-by-step | Automated guided process |
+| File Storage | Local folders | In-memory (download when done) |
+| Best For | Local use, full control | Cloud use, convenience |
+
+---
+
+## Desktop Components
 
 ### 1. DataMatrix Generator (`dataMatrix_gen.py`)
 Generates DataMatrix barcode images with customizable serial numbers.

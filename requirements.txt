@@ -1,0 +1,6 @@
+streamlit>=1.40.0
+Pillow>=11.0.0
+setuptools>=75.0.0
+pylibdmtx>=0.1.10
+pypdf>=5.1.0
+reportlab>=4.2.5
