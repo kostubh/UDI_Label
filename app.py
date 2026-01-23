@@ -44,76 +44,7 @@ if 'config' not in st.session_state:
 
 # Google Drive folder ID (from the URL)
 GDRIVE_FOLDER_ID = "1ekdh6SSXvMuxbT9-mr3Y8HvlCluvUs5p"
-
-# Upload function for Google Drive
-def upload_to_gdrive(file_data, filename, file_size_mb):
-    """Upload file to Google Drive public folder"""
-    try:
-        # Google Drive API v3 upload endpoint
-        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
-
-        # Create metadata
-        metadata = {
-            'name': filename,
-            'parents': [GDRIVE_FOLDER_ID]
-        }
-
-        # Create multipart request
-        boundary = '-------314159265358979323846'
-
-        # Build multipart body
-        body = f'--{boundary}\r\n'
-        body += 'Content-Type: application/json; charset=UTF-8\r\n\r\n'
-        body += f'{json.dumps(metadata)}\r\n'
-        body += f'--{boundary}\r\n'
-        body += 'Content-Type: application/pdf\r\n\r\n'
-
-        # Convert to bytes
-        body_bytes = body.encode('utf-8')
-        body_bytes += file_data
-        body_bytes += f'\r\n--{boundary}--'.encode('utf-8')
-
-        # Set headers
-        headers = {
-            'Content-Type': f'multipart/related; boundary={boundary}'
-        }
-
-        # Upload
-        response = requests.post(url, headers=headers, data=body_bytes, timeout=300)
-
-        if response.status_code in [200, 201]:
-            result = response.json()
-            file_id = result.get('id')
-
-            # Generate shareable link
-            file_url = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
-            download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-            folder_url = f"https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}"
-
-            return {
-                'success': True,
-                'file_url': file_url,
-                'download_url': download_url,
-                'folder_url': folder_url,
-                'filename': filename,
-                'file_size_mb': file_size_mb
-            }
-        else:
-            return {
-                'success': False,
-                'error': f"Upload failed: HTTP {response.status_code}. Response: {response.text[:300]}"
-            }
-
-    except requests.exceptions.Timeout:
-        return {
-            'success': False,
-            'error': "Upload timed out (>5 min). File might be too large."
-        }
-    except Exception as e:
-        return {
-            'success': False,
-            'error': f"Upload error: {str(e)[:300]}"
-        }
+GDRIVE_FOLDER_URL = f"https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}"
 
 # Title
 st.title("🏷️ UDI Label Generator")
@@ -622,49 +553,33 @@ with tab4:
                     )
 
                 with col_b:
-                    # Upload button
-                    if st.button("☁️ Upload to Google Drive", type="secondary", use_container_width=True):
-                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to Google Drive..."):
-                            result = upload_to_gdrive(
-                                st.session_state.final_pdf,
-                                st.session_state.pdf_filename,
-                                st.session_state.pdf_size_mb
-                            )
-                            st.session_state.upload_result = result
-
-            # Display upload results if they exist (outside the button to persist across reruns)
-            if 'upload_result' in st.session_state and st.session_state.upload_result:
-                result = st.session_state.upload_result
-
-                if result['success']:
-                    st.success("✅ Upload successful!")
+                    # Link to open Google Drive folder
                     st.markdown(f"""
-                    ### 🔗 Google Drive Links
+                    <a href="{GDRIVE_FOLDER_URL}" target="_blank">
+                        <button style="
+                            background-color: #4285f4;
+                            color: white;
+                            padding: 0.5rem 1rem;
+                            border: none;
+                            border-radius: 0.25rem;
+                            font-size: 1rem;
+                            cursor: pointer;
+                            width: 100%;
+                            font-family: inherit;
+                        ">
+                            ☁️ Open Google Drive Folder
+                        </button>
+                    </a>
+                    """, unsafe_allow_html=True)
 
-                    **[📁 View in Google Drive]({result['file_url']})**
-
-                    **[⬇️ Direct Download Link]({result['download_url']})**
-
-                    **[📂 Open Drive Folder]({result['folder_url']})**
-
-                    Copy link to share:
-                    ```
-                    {result['file_url']}
-                    ```
-
-                    📊 **File size:** {result['file_size_mb']:.2f} MB
-                    🌐 **Storage:** Google Drive (your public folder)
-                    ⏱️ **Available:** Permanently (until you delete it)
-
-                    💡 **Tip:** The file is now in your Google Drive folder and accessible to anyone with the link!
-                    """)
-
-                    # Add a clear button to hide the results
-                    if st.button("Clear Upload Results"):
-                        del st.session_state.upload_result
-                        st.rerun()
-                else:
-                    st.error(f"❌ {result['error']}")
+                st.markdown("---")
+                st.info("""
+                📤 **How to upload to Google Drive:**
+                1. Click "📥 Download PDF" to save the file
+                2. Click "☁️ Open Google Drive Folder" (opens in new tab)
+                3. Drag and drop the downloaded PDF into the Drive folder
+                4. Done! File is now in your Google Drive and shareable
+                """)
 
 # Footer
 st.markdown("---")
