@@ -42,31 +42,24 @@ if 'config' not in st.session_state:
     }
 
 # Upload function for file sharing
-def upload_file_to_pixeldrain(file_data, filename, file_size_mb):
-    """Upload file to Pixeldrain and return shareable link data"""
+def upload_file_to_transfer_sh(file_data, filename, file_size_mb):
+    """Upload file to transfer.sh and return shareable link data"""
     try:
-        # Pixeldrain anonymous upload API
-        url = "https://pixeldrain.com/api/file"
+        # transfer.sh simple upload API
+        url = f"https://transfer.sh/{filename}"
 
-        # Create multipart form data
-        files = {'file': (filename, file_data, 'application/pdf')}
+        # Upload file (transfer.sh uses PUT request with raw data)
+        headers = {'Content-Type': 'application/pdf'}
+        response = requests.put(url, data=file_data, headers=headers, timeout=300)
 
-        # Upload with progress
-        response = requests.post(url, files=files, timeout=300)
+        if response.status_code == 200:
+            # transfer.sh returns the download URL as plain text
+            download_link = response.text.strip()
 
-        if response.status_code == 201:
-            result = response.json()
-            file_id = result['id']
-
-            # Generate shareable links
-            download_link = f"https://pixeldrain.com/u/{file_id}"
-            direct_link = f"https://pixeldrain.com/api/file/{file_id}"
-
-            # Return data instead of displaying
+            # Return data
             return {
                 'success': True,
                 'download_link': download_link,
-                'direct_link': direct_link,
                 'filename': filename,
                 'file_size_mb': file_size_mb
             }
@@ -596,8 +589,8 @@ with tab4:
                 with col_b:
                     # Upload button
                     if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
-                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to Pixeldrain..."):
-                            result = upload_file_to_pixeldrain(
+                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to transfer.sh..."):
+                            result = upload_file_to_transfer_sh(
                                 st.session_state.final_pdf,
                                 st.session_state.pdf_filename,
                                 st.session_state.pdf_size_mb
@@ -611,20 +604,18 @@ with tab4:
                 if result['success']:
                     st.success("✅ Upload successful!")
                     st.markdown(f"""
-                    ### 🔗 Shareable Links
+                    ### 🔗 Download Link
 
-                    **Download Page:** [Click here to download]({result['download_link']})
+                    **[Click here to download {result['filename']}]({result['download_link']})**
+
+                    Or copy this link to share:
                     ```
                     {result['download_link']}
                     ```
 
-                    **Direct Download Link:**
-                    ```
-                    {result['direct_link']}
-                    ```
-
-                    ⏱️ **Valid for:** 60+ days
+                    ⏱️ **Valid for:** 14 days
                     📊 **File size:** {result['file_size_mb']:.2f} MB
+                    🌐 **Service:** transfer.sh (free, no registration)
 
                     💡 **Tip:** Copy the link above and share it with anyone who needs the file!
                     """)
