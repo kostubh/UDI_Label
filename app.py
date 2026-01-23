@@ -11,7 +11,7 @@ from PIL import Image
 from pylibdmtx.pylibdmtx import encode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
-from pypdf import PdfMerger
+from pypdf import PdfWriter
 import subprocess
 import re
 
@@ -420,7 +420,7 @@ with tab4:
 
                     # Create PDF
                     pdf_buffer = io.BytesIO()
-                    merger = PdfMerger()
+                    writer = PdfWriter()
 
                     serial_numbers = sorted(st.session_state.label_pngs.keys())
                     total = len(serial_numbers)
@@ -465,9 +465,9 @@ with tab4:
                         c.drawImage(temp_img, x_pos, y_pos, width=width, height=height)
                         c.save()
 
-                        # Add to merger
+                        # Add to writer
                         temp_pdf.seek(0)
-                        merger.append(temp_pdf)
+                        writer.append(temp_pdf)
                         temp_pdfs.append(temp_pdf)
 
                         # Update progress
@@ -476,8 +476,8 @@ with tab4:
                         status_text.text(f"Processing: {idx + 1}/{total}")
 
                     # Write final PDF
-                    merger.write(pdf_buffer)
-                    merger.close()
+                    writer.write(pdf_buffer)
+                    writer.close()
 
                     pdf_buffer.seek(0)
 
