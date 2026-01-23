@@ -566,36 +566,43 @@ with tab4:
                     else:
                         filename = "udi_labels.pdf"
 
-                    st.success(f"✅ PDF created with {total} pages!")
-                    st.info(f"📄 Filename: `{filename}`")
-
                     # Show file size
                     pdf_size_mb = len(pdf_buffer.getvalue()) / (1024 * 1024)
-                    st.info(f"📊 PDF Size: {pdf_size_mb:.2f} MB")
 
-                    # Store in session state for upload
+                    # Store in session state for later access
                     st.session_state.final_pdf = pdf_buffer.getvalue()
                     st.session_state.pdf_filename = filename
                     st.session_state.pdf_size_mb = pdf_size_mb
 
-                    col_a, col_b = st.columns(2)
+                    st.success(f"✅ PDF created with {total} pages!")
 
-                    with col_a:
-                        # Download button
-                        st.download_button(
-                            label="📥 Download PDF",
-                            data=pdf_buffer,
-                            file_name=filename,
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+            # Show download/upload options if PDF exists (OUTSIDE the Generate PDF button)
+            if 'final_pdf' in st.session_state and st.session_state.final_pdf:
+                st.info(f"📄 Filename: `{st.session_state.pdf_filename}`")
+                st.info(f"📊 PDF Size: {st.session_state.pdf_size_mb:.2f} MB")
 
-                    with col_b:
-                        # Upload button
-                        if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
-                            with st.spinner(f"📤 Uploading {filename} ({pdf_size_mb:.2f} MB) to Pixeldrain..."):
-                                result = upload_file_to_pixeldrain(pdf_buffer.getvalue(), filename, pdf_size_mb)
-                                st.session_state.upload_result = result
+                col_a, col_b = st.columns(2)
+
+                with col_a:
+                    # Download button
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=st.session_state.final_pdf,
+                        file_name=st.session_state.pdf_filename,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+
+                with col_b:
+                    # Upload button
+                    if st.button("☁️ Upload & Get Share Link", type="secondary", use_container_width=True):
+                        with st.spinner(f"📤 Uploading {st.session_state.pdf_filename} ({st.session_state.pdf_size_mb:.2f} MB) to Pixeldrain..."):
+                            result = upload_file_to_pixeldrain(
+                                st.session_state.final_pdf,
+                                st.session_state.pdf_filename,
+                                st.session_state.pdf_size_mb
+                            )
+                            st.session_state.upload_result = result
 
             # Display upload results if they exist (outside the button to persist across reruns)
             if 'upload_result' in st.session_state and st.session_state.upload_result:
