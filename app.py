@@ -190,6 +190,13 @@ with tab2:
                 )
 
             with col2:
+                export_dpi = st.selectbox(
+                    "PNG Export DPI",
+                    options=[300, 600, 1200],
+                    index=1,  # Default to 600 DPI
+                    help="Higher DPI = better quality but larger file size"
+                )
+
                 use_inkscape = st.checkbox(
                     "Use Inkscape for PNG Export",
                     value=True,
@@ -250,7 +257,9 @@ with tab2:
                                     temp_svg_path,
                                     "--export-type=png",
                                     "--export-area-page",
-                                    "--export-dpi=300",
+                                    f"--export-dpi={export_dpi}",
+                                    "--export-background=white",
+                                    "--export-background-opacity=1.0",
                                     "--export-filename", temp_png_path
                                 ], capture_output=True, timeout=30)
 
@@ -385,18 +394,26 @@ with tab4:
         if not is_png:
             st.error("❌ PDF generation requires PNG files. Please enable Inkscape export in Step 2.")
         else:
+            # Get dimensions of first image to calculate default page size
+            first_img = Image.open(io.BytesIO(first_data))
+            # Assume 600 DPI for conversion to mm (1 inch = 25.4 mm)
+            img_width_mm = round((first_img.width / 600) * 25.4, 1)
+            img_height_mm = round((first_img.height / 600) * 25.4, 1)
+
             col1, col2 = st.columns(2)
 
             with col1:
                 page_format = st.selectbox(
                     "Page Size",
-                    ["A4", "Letter", "Custom"],
+                    ["Image Size", "A4", "Letter", "Custom"],
                     help="Select the page size for the PDF"
                 )
 
                 if page_format == "Custom":
                     custom_width = st.number_input("Width (mm)", value=210, min_value=50, max_value=500)
                     custom_height = st.number_input("Height (mm)", value=297, min_value=50, max_value=500)
+                elif page_format == "Image Size":
+                    st.info(f"📏 Image size: {img_width_mm} × {img_height_mm} mm")
 
             with col2:
                 orientation = st.radio("Orientation", ["Portrait", "Landscape"])
@@ -408,7 +425,10 @@ with tab4:
                     status_text = st.empty()
 
                     # Determine page size
-                    if page_format == "A4":
+                    if page_format == "Image Size":
+                        # Use actual image dimensions
+                        pagesize = (img_width_mm * 2.83465, img_height_mm * 2.83465)
+                    elif page_format == "A4":
                         pagesize = A4
                     elif page_format == "Letter":
                         pagesize = letter
