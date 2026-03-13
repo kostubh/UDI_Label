@@ -92,7 +92,7 @@ def upload_to_filebin(file_data, filename, file_size_mb):
 
 # Title
 st.title("🏷️ UDI Label Generator")
-st.markdown("Generate UDI labels with DataMatrix barcodes, merge into PDF, and download.")
+st.markdown("Generate UDI labels with optional DataMatrix barcodes, merge into PDF, and download.")
 
 # Tabs for each step
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -105,7 +105,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ==================== TAB 1: Generate DataMatrix ====================
 with tab1:
     st.header("Step 1: Generate DataMatrix Images")
-    st.markdown("Create DataMatrix barcode images for your UDI labels.")
+    st.markdown("Create DataMatrix barcode images for your UDI labels. **This step is optional** — skip to Step 2 for serial-only labels.")
 
     col1, col2 = st.columns([2, 1])
 
@@ -209,84 +209,115 @@ with tab1:
 # ==================== TAB 2: Generate Labels ====================
 with tab2:
     st.header("Step 2: Generate Label PNGs")
-    st.markdown("Upload your SVG template and generate final labels with embedded DataMatrix codes.")
+    st.markdown("Upload your SVG template and generate final labels. DataMatrix codes will be embedded if generated in Step 1.")
 
-    if not st.session_state.datamatrix_images:
-        st.warning("⚠️ Please generate DataMatrix images first (Step 1)")
+    # Mode indicator
+    has_datamatrix = bool(st.session_state.datamatrix_images)
+    if has_datamatrix:
+        st.success(f"**DataMatrix mode** — {len(st.session_state.datamatrix_images)} DataMatrix images available from Step 1")
     else:
-        # Upload SVG template
-        uploaded_svg = st.file_uploader(
-            "Upload SVG Template",
-            type=['svg'],
-            help="Upload your label template SVG file. Use 'serial_number_text' as placeholder for serial numbers."
-        )
+        st.info("**Serial Only mode** — No DataMatrix images generated. Labels will contain serial numbers only.")
 
-        if uploaded_svg is not None:
-            st.session_state.svg_template = uploaded_svg.read().decode('utf-8')
-            st.success("✅ SVG template loaded")
+    # Upload SVG template
+    uploaded_svg = st.file_uploader(
+        "Upload SVG Template",
+        type=['svg'],
+        help="Upload your label template SVG file. Use 'serial_number_text' as placeholder for serial numbers."
+    )
 
-            # Show SVG preview info
-            with st.expander("📄 SVG Template Info"):
-                st.code(st.session_state.svg_template[:500] + "...", language="xml")
+    if uploaded_svg is not None:
+        st.session_state.svg_template = uploaded_svg.read().decode('utf-8')
+        st.success("✅ SVG template loaded")
 
-        if st.session_state.svg_template:
-            col1, col2 = st.columns(2)
+        # Show SVG preview info
+        with st.expander("📄 SVG Template Info"):
+            st.code(st.session_state.svg_template[:500] + "...", language="xml")
 
-            with col1:
-                serial_prefix = st.text_input(
-                    "Serial Number Prefix",
-                    value=st.session_state.config['serial_prefix'],
-                    help="Prefix for serial numbers (extracted from DataMatrix generation)"
-                )
+    if st.session_state.svg_template:
+        col1, col2 = st.columns(2)
 
+        with col1:
+            serial_prefix = st.text_input(
+                "Serial Number Prefix",
+                value=st.session_state.config['serial_prefix'],
+                help="Prefix for serial numbers (extracted from DataMatrix generation if Step 1 was used)"
+            )
+
+            label_start_num = st.number_input(
+                "Start Number", min_value=1,
+                value=st.session_state.config['start_number'],
+                step=1, key="label_start_num",
+                help="Starting serial number for label generation"
+            )
+            label_end_num = st.number_input(
+                "End Number", min_value=1,
+                value=st.session_state.config['end_number'],
+                step=1, key="label_end_num",
+                help="Ending serial number for label generation"
+            )
+
+            if label_start_num > label_end_num:
+                st.error("Start number must be less than or equal to end number.")
+
+            if has_datamatrix:
                 image_id = st.text_input(
                     "Primary Image ID (DataMatrix)",
                     value=st.session_state.config['image_id'],
                     help="The ID of the image element in your SVG where DataMatrix will be embedded"
                 )
+            else:
+                image_id = st.session_state.config['image_id']
 
-            with col2:
-                export_dpi = st.selectbox(
-                    "PNG Export DPI",
-                    options=[300, 600, 1200],
-                    index=1,  # Default to 600 DPI
-                    help="Higher DPI = better quality but larger file size"
-                )
+        with col2:
+            export_dpi = st.selectbox(
+                "PNG Export DPI",
+                options=[300, 600, 1200],
+                index=1,  # Default to 600 DPI
+                help="Higher DPI = better quality but larger file size"
+            )
 
-                use_inkscape = st.checkbox(
-                    "Use Inkscape for PNG Export",
-                    value=True,
-                    help="Generates PNG files using Inkscape (recommended). Uncheck to generate SVG files only."
-                )
+            use_inkscape = st.checkbox(
+                "Use Inkscape for PNG Export",
+                value=True,
+                help="Generates PNG files using Inkscape (recommended). Uncheck to generate SVG files only."
+            )
 
-                if use_inkscape:
-                    st.info("✅ Inkscape is installed and ready to use")
+            if use_inkscape:
+                st.info("✅ Inkscape is installed and ready to use")
 
-            st.markdown("---")
+        st.markdown("---")
 
-            if st.button("🎨 Generate Label Images", type="primary", use_container_width=True):
-                with st.spinner("Generating labels..."):
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
+        if label_start_num <= label_end_num and st.button("🎨 Generate Label Images", type="primary", use_container_width=True):
+            with st.spinner("Generating labels..."):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
 
-                    st.session_state.label_pngs = {}
+                st.session_state.label_pngs = {}
 
-                    serial_numbers = sorted(st.session_state.datamatrix_images.keys())
-                    total = len(serial_numbers)
+                # Build serial numbers from prefix + range
+                serial_numbers = [f"{serial_prefix}{i:04d}" for i in range(label_start_num, label_end_num + 1)]
+                total = len(serial_numbers)
 
-                    # Reduce UI update frequency to avoid connection issues
-                    update_interval = max(1, total // 20)  # Update max 20 times total
+                # Warn about missing DataMatrix images if in DataMatrix mode
+                if has_datamatrix:
+                    missing_dm = [s for s in serial_numbers if s not in st.session_state.datamatrix_images]
+                    if missing_dm:
+                        st.warning(f"⚠️ {len(missing_dm)} serial(s) in range have no DataMatrix image — those labels will get serial text only.")
 
-                    for idx, serial_number in enumerate(serial_numbers):
-                        # Parse SVG
-                        root = ET.fromstring(st.session_state.svg_template)
+                # Reduce UI update frequency to avoid connection issues
+                update_interval = max(1, total // 20)  # Update max 20 times total
 
-                        # Replace serial_number_text with actual serial
-                        for elem in root.iter():
-                            if elem.text and "serial_number_text" in elem.text:
-                                elem.text = elem.text.replace("serial_number_text", serial_number)
+                for idx, serial_number in enumerate(serial_numbers):
+                    # Parse SVG
+                    root = ET.fromstring(st.session_state.svg_template)
 
-                        # Embed DataMatrix image
+                    # Replace serial_number_text with actual serial
+                    for elem in root.iter():
+                        if elem.text and "serial_number_text" in elem.text:
+                            elem.text = elem.text.replace("serial_number_text", serial_number)
+
+                    # Embed DataMatrix image only if available for this serial
+                    if serial_number in st.session_state.datamatrix_images:
                         datamatrix_data = st.session_state.datamatrix_images[serial_number]
                         img_base64 = base64.b64encode(datamatrix_data).decode('utf-8')
                         href_val = f"data:image/png;base64,{img_base64}"
@@ -297,61 +328,61 @@ with tab2:
                                 image_elem.attrib["{http://www.w3.org/1999/xlink}href"] = href_val
                                 break
 
-                        # Generate modified SVG
-                        svg_bytes = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+                    # Generate modified SVG
+                    svg_bytes = ET.tostring(root, encoding='utf-8', xml_declaration=True)
 
-                        if use_inkscape:
-                            # Try to export PNG with Inkscape
-                            try:
-                                with tempfile.NamedTemporaryFile(suffix='.svg', delete=False) as temp_svg:
-                                    temp_svg.write(svg_bytes)
-                                    temp_svg_path = temp_svg.name
+                    if use_inkscape:
+                        # Try to export PNG with Inkscape
+                        try:
+                            with tempfile.NamedTemporaryFile(suffix='.svg', delete=False) as temp_svg:
+                                temp_svg.write(svg_bytes)
+                                temp_svg_path = temp_svg.name
 
-                                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_png:
-                                    temp_png_path = temp_png.name
+                            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_png:
+                                temp_png_path = temp_png.name
 
-                                # Run Inkscape
-                                result = subprocess.run([
-                                    "inkscape",
-                                    temp_svg_path,
-                                    "--export-type=png",
-                                    "--export-area-page",
-                                    f"--export-dpi={export_dpi}",
-                                    "--export-background=white",
-                                    "--export-background-opacity=1.0",
-                                    "--export-filename", temp_png_path
-                                ], capture_output=True, timeout=30)
+                            # Run Inkscape
+                            result = subprocess.run([
+                                "inkscape",
+                                temp_svg_path,
+                                "--export-type=png",
+                                "--export-area-page",
+                                f"--export-dpi={export_dpi}",
+                                "--export-background=white",
+                                "--export-background-opacity=1.0",
+                                "--export-filename", temp_png_path
+                            ], capture_output=True, timeout=30)
 
-                                if result.returncode == 0 and os.path.exists(temp_png_path):
-                                    with open(temp_png_path, 'rb') as f:
-                                        st.session_state.label_pngs[serial_number] = f.read()
-                                else:
-                                    st.error(f"Inkscape export failed for {serial_number}")
+                            if result.returncode == 0 and os.path.exists(temp_png_path):
+                                with open(temp_png_path, 'rb') as f:
+                                    st.session_state.label_pngs[serial_number] = f.read()
+                            else:
+                                st.error(f"Inkscape export failed for {serial_number}")
 
-                                # Cleanup
-                                os.unlink(temp_svg_path)
-                                if os.path.exists(temp_png_path):
-                                    os.unlink(temp_png_path)
+                            # Cleanup
+                            os.unlink(temp_svg_path)
+                            if os.path.exists(temp_png_path):
+                                os.unlink(temp_png_path)
 
-                            except Exception as e:
-                                st.error(f"Error with Inkscape: {str(e)}")
-                                # Fallback to SVG
-                                st.session_state.label_pngs[serial_number] = svg_bytes
-                        else:
-                            # Store SVG as-is (can be converted later or downloaded)
+                        except Exception as e:
+                            st.error(f"Error with Inkscape: {str(e)}")
+                            # Fallback to SVG
                             st.session_state.label_pngs[serial_number] = svg_bytes
+                    else:
+                        # Store SVG as-is (can be converted later or downloaded)
+                        st.session_state.label_pngs[serial_number] = svg_bytes
 
-                        # Update progress less frequently
-                        current = idx + 1
-                        if current % update_interval == 0 or current == total:
-                            progress = current / total
-                            progress_bar.progress(progress)
-                            status_text.text(f"Generating: {current}/{total}")
+                    # Update progress less frequently
+                    current = idx + 1
+                    if current % update_interval == 0 or current == total:
+                        progress = current / total
+                        progress_bar.progress(progress)
+                        status_text.text(f"Generating: {current}/{total}")
 
-                    progress_bar.empty()
-                    status_text.empty()
+                progress_bar.empty()
+                status_text.empty()
 
-                    st.success(f"✅ Generated {len(st.session_state.label_pngs)} label files!")
+                st.success(f"✅ Generated {len(st.session_state.label_pngs)} label files!")
 
     # Show status
     if st.session_state.label_pngs:
