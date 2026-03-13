@@ -1,14 +1,15 @@
 {
-  "svg_path": "C:/Users/user/Downloads/temp/UDI_Label/D-272-HRC-MDF-12-UDI LABEL-V1.svg",
+  "svg_path": "C:/Users/sheet/Documents/UDI_Label-main/T-119-HRC-BP-UDI LABEL-USA.svg",
   "datamatrix_folder": "C:/Users/user/Downloads/temp/UDI_Label/Data_MatrixImages",
   "tspan_ids": [
     "tspan20",
     "tspan27"
   ],
   "image_id": "image1",
-  "start_number": "225",
-  "end_number": "1050",
-  "serial_prefix": "2601D272HRC",
+  "start_number": "1",
+  "end_number": "10",
+  "serial_prefix": "2603UST119HRCBP",
+  "use_primary_barcode": false,
   "use_secondary_barcode": false,
   "secondary_barcode_folder": "",
   "secondary_image_id": "image2",

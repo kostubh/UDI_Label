@@ -118,23 +118,33 @@ class InkscapeLabelGenerator:
                            bg="#f0f0f0", font=("Arial", 9), fg="#666666", wraplength=700, justify="left")
         note_text.pack(anchor="w", pady=(2, 0))
         
-        # DataMatrix Images Folder Selection
-        datamatrix_frame = tk.Frame(scrollable_frame, bg="#f0f0f0")
-        datamatrix_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
-        
-        datamatrix_label = tk.Label(datamatrix_frame, text="DataMatrix Images Folder:", 
-                                  bg="#f0f0f0", font=("Arial", 10, "bold"))
+        # DataMatrix / Primary Barcode Option
+        primary_barcode_frame = tk.Frame(scrollable_frame, bg="#f0f0f0")
+        primary_barcode_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+
+        self.use_primary_barcode = tk.BooleanVar(value=True)
+        primary_checkbox = tk.Checkbutton(primary_barcode_frame,
+                                          text="Use Primary DataMatrix Images",
+                                          variable=self.use_primary_barcode,
+                                          bg="#f0f0f0", font=("Arial", 10, "bold"),
+                                          command=self.toggle_primary_barcode)
+        primary_checkbox.grid(row=0, column=0, sticky="w", pady=(0, 5))
+
+        self.primary_folder_frame = tk.Frame(primary_barcode_frame, bg="#f0f0f0")
+        self.primary_folder_frame.grid(row=1, column=0, sticky="w", pady=(0, 0))
+
+        datamatrix_label = tk.Label(self.primary_folder_frame, text="DataMatrix Images Folder:",
+                                    bg="#f0f0f0", font=("Arial", 10))
         datamatrix_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
-        
+
         self.datamatrix_folder_var = tk.StringVar()
-        datamatrix_entry = tk.Entry(datamatrix_frame, textvariable=self.datamatrix_folder_var, 
-                                  width=50, font=("Arial", 10))
+        datamatrix_entry = tk.Entry(self.primary_folder_frame, textvariable=self.datamatrix_folder_var,
+                                    width=50, font=("Arial", 10))
         datamatrix_entry.grid(row=1, column=0, padx=(0, 10), sticky="ew")
-        
-        datamatrix_browse_button = tk.Button(datamatrix_frame, text="Browse", 
-                                           command=self.browse_datamatrix_folder,
-                                           font=("Arial", 10), bg="#4CAF50", fg="white", 
-                                           padx=10)
+
+        datamatrix_browse_button = tk.Button(self.primary_folder_frame, text="Browse",
+                                             command=self.browse_datamatrix_folder,
+                                             font=("Arial", 10), bg="#4CAF50", fg="white", padx=10)
         datamatrix_browse_button.grid(row=1, column=1, padx=(0, 10))
         
         # Secondary Barcode Option
@@ -273,6 +283,13 @@ class InkscapeLabelGenerator:
             self.secondary_folder_frame.grid_forget()
         self.save_config()
 
+    def toggle_primary_barcode(self):
+        if self.use_primary_barcode.get():
+            self.primary_folder_frame.grid(row=1, column=0, sticky="w", pady=(0, 0))
+        else:
+            self.primary_folder_frame.grid_forget()
+        self.save_config()
+
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
             try:
@@ -287,6 +304,7 @@ class InkscapeLabelGenerator:
         self.config["svg_path"] = self.svg_path_var.get()
         self.config["serial_prefix"] = self.serial_prefix_var.get()
         self.config["datamatrix_folder"] = self.datamatrix_folder_var.get()
+        self.config["use_primary_barcode"] = self.use_primary_barcode.get()
         self.config["use_secondary_barcode"] = self.use_secondary_barcode.get()
         self.config["secondary_barcode_folder"] = self.secondary_barcode_folder_var.get()
         self.config["secondary_image_id"] = self.secondary_image_id.get()
@@ -309,6 +327,9 @@ class InkscapeLabelGenerator:
         if self.config.get("datamatrix_folder"):
             self.datamatrix_folder_var.set(self.config["datamatrix_folder"])
             self.datamatrix_folder = self.config["datamatrix_folder"]
+        if "use_primary_barcode" in self.config:
+            self.use_primary_barcode.set(self.config["use_primary_barcode"])
+            self.toggle_primary_barcode()
         if self.config.get("use_secondary_barcode"):
             self.use_secondary_barcode.set(self.config["use_secondary_barcode"])
             self.toggle_secondary_barcode()
@@ -408,9 +429,10 @@ class InkscapeLabelGenerator:
             messagebox.showerror("Error", "Please select a valid SVG template file.")
             return
         
-        if not self.datamatrix_folder or not os.path.exists(self.datamatrix_folder):
-            messagebox.showerror("Error", "Please select a valid DataMatrix images folder.")
-            return
+        if self.use_primary_barcode.get():
+            if not self.datamatrix_folder or not os.path.exists(self.datamatrix_folder):
+                messagebox.showerror("Error", "Please select a valid DataMatrix images folder.")
+                return
         
         # Check secondary barcode folder if enabled
         if self.use_secondary_barcode.get():
@@ -430,7 +452,7 @@ class InkscapeLabelGenerator:
             image_id = self.image_id.get()
             secondary_image_id = self.secondary_image_id.get() if self.use_secondary_barcode.get() else None
             
-            if not image_id:
+            if self.use_primary_barcode.get() and not image_id:
                 messagebox.showerror("Error", "Please enter Primary Image ID")
                 return
             
@@ -528,18 +550,19 @@ class InkscapeLabelGenerator:
                     elem.text = elem.text.replace("serial_number_text", serial_number)
 
             # Update Primary Image
-            image_path = os.path.join(self.datamatrix_folder, f"{serial_number}.png")
-            if not os.path.exists(image_path):
-                print(f"Error: Image not found {image_path}")
-                return
+            if self.use_primary_barcode.get() and image_id:
+                image_path = os.path.join(self.datamatrix_folder, f"{serial_number}.png")
+                if not os.path.exists(image_path):
+                    print(f"Error: Image not found {image_path}")
+                    return
 
-            with open(image_path, "rb") as img_file:
-                img_base64 = base64.b64encode(img_file.read()).decode("utf-8")
-                href = f"data:image/png;base64,{img_base64}"
-                for img in root.iter():
-                    if img.attrib.get("id") == image_id:
-                        img.attrib["{http://www.w3.org/1999/xlink}href"] = href
-                        break
+                with open(image_path, "rb") as img_file:
+                    img_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+                    href = f"data:image/png;base64,{img_base64}"
+                    for img in root.iter():
+                        if img.attrib.get("id") == image_id:
+                            img.attrib["{http://www.w3.org/1999/xlink}href"] = href
+                            break
 
             # Update Secondary Image
             if self.use_secondary_barcode.get() and secondary_image_id:
