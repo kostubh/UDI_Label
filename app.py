@@ -18,6 +18,12 @@ import re
 import requests
 import json
 
+# Register SVG namespaces to preserve original prefixes during XML round-trip
+ET.register_namespace('', 'http://www.w3.org/2000/svg')
+ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
+ET.register_namespace('inkscape', 'http://www.inkscape.org/namespaces/inkscape')
+ET.register_namespace('sodipodi', 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd')
+
 # Page config
 st.set_page_config(
     page_title="UDI Label Generator",
