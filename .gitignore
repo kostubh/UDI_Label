@@ -3,3 +3,11 @@
 *.svg
 *.pdf
 inkscape_label_gui_config.json
+
+# Web app
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+venv/
+env/
+.env
